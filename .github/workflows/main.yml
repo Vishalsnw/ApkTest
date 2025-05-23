@@ -7,41 +7,33 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential zip unzip openjdk-8-jdk wget python3-pip
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip build-essential libncurses5 libstdc++6
+
+      - name: Install Buildozer & dependencies
+        run: |
           pip install --upgrade pip
           pip install cython==0.29.36 virtualenv buildozer
 
-      - name: Install Android SDK cmdline-tools
+      - name: Accept Android SDK licenses
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mv cmdline-tools latest
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-          export PATH=$ANDROID_HOME/platform-tools:$PATH
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          mkdir -p ~/.android
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.android/repositories.cfg
 
       - name: Build APK
-        env:
-          ANDROID_HOME: $HOME/android-sdk
-          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH
         run: |
           buildozer android debug
 
