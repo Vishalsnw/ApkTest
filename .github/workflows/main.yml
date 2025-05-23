@@ -18,28 +18,26 @@ jobs:
         with:
           python-version: 3.11
 
+      - name: Set up Java (Java 17 required by SDK tools)
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev libjpeg-dev libncurses5 wget
+          sudo apt install -y build-essential zip unzip libffi-dev libssl-dev libjpeg-dev libncurses5
           pip install --upgrade pip
           pip install cython==0.29.36 virtualenv buildozer
 
-      - name: Setup Android SDK manually
+      - name: Accept Android Licenses and Setup SDK
         run: |
-          mkdir -p $HOME/Android/cmdline-tools
-          cd $HOME/Android/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-          unzip tools.zip
-          mv cmdline-tools latest
-          yes | $HOME/Android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android --licenses
-          yes | $HOME/Android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android "platform-tools" "platforms;android-31" "build-tools;33.0.2"
+          mkdir -p $HOME/.android
+          echo '### User Sources for Android SDK Manager' > $HOME/.android/repositories.cfg
+          yes | buildozer android update
 
-      - name: Build APK with Buildozer
-        env:
-          ANDROIDSDK: $HOME/Android
-          ANDROIDNDK: $HOME/.buildozer/android/platform/android-ndk-r25b
-          PATH: $HOME/Android/cmdline-tools/latest/bin:$HOME/Android/platform-tools:$PATH
+      - name: Build APK
         run: |
           buildozer android debug
 
