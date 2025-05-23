@@ -20,7 +20,7 @@ android.sdk = 33
 android.ndk = 25b
 android.arch = armeabi-v7a
 # If needed, enable this
-# android.permissions = READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
-# Force accept licenses (important for CI)
+android.permissions = READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
+Force accept licenses (important for CI)
 android.accept_sdk_license = true
 android.accept_android_sdk_license = true
