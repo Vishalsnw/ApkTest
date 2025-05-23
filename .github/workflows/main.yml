@@ -21,18 +21,27 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential zip unzip openjdk-8-jdk python3-pip
+          sudo apt install -y build-essential zip unzip openjdk-8-jdk wget python3-pip
           pip install --upgrade pip
           pip install cython==0.29.36 virtualenv buildozer
 
-      - name: Install Android SDK and accept licenses
+      - name: Install Android SDK cmdline-tools
         run: |
-          mkdir -p ~/.android
-          echo '### User Sources for Android SDK Manager' > ~/.android/repositories.cfg
-          yes | sdkmanager --licenses || true
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools latest
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          export PATH=$ANDROID_HOME/platform-tools:$PATH
+          yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - name: Build APK
+        env:
+          ANDROID_HOME: $HOME/android-sdk
+          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH
         run: |
           buildozer android debug
 
