@@ -6,6 +6,8 @@ title = PDF Viewer
 # (str) Package name
 package.name = pdfviewer
 
+version = 1.0
+
 # (str) Package domain (reverse DNS style)
 package.domain = org.example
 
