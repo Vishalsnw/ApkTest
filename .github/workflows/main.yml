@@ -16,35 +16,37 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip build-essential libstdc++6 libncurses6 wget
-
-      - name: Install Android cmdline-tools
-        run: |
-          mkdir -p $HOME/Android/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $HOME/Android/cmdline-tools
-          mv $HOME/Android/cmdline-tools/cmdline-tools $HOME/Android/cmdline-tools/latest
-          rm cmdline-tools.zip
-
-      - name: Set ANDROID_HOME and update PATH
-        run: |
-          echo "ANDROID_HOME=$HOME/Android" >> $GITHUB_ENV
-          echo "PATH=$HOME/Android/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Accept Android SDK licenses
-        shell: bash
-        run: |
-          yes | $HOME/Android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android --licenses
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip build-essential \
+                              libncurses5 libstdc++6 libffi-dev libssl-dev curl git
 
       - name: Install Buildozer and dependencies
         run: |
           pip install --upgrade pip
-          pip install cython==0.29.36 virtualenv buildozer
+          pip install cython==0.29.36 buildozer
+
+      - name: Set up Android SDK
+        run: |
+          mkdir -p $HOME/Android/cmdline-tools
+          cd $HOME/Android/cmdline-tools
+          curl -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip tools.zip -d latest
+          rm tools.zip
+
+      - name: Accept licenses and install SDK components
+        run: |
+          yes | $HOME/Android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          yes | $HOME/Android/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=$HOME/Android
+
+      - name: Set environment variables
+        run: |
+          echo "ANDROID_SDK_ROOT=$HOME/Android" >> $GITHUB_ENV
+          echo "PATH=$HOME/Android/platform-tools:$HOME/Android/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
       - name: Build APK
         run: |
@@ -55,3 +57,7 @@ jobs:
         with:
           name: my-kivy-app
           path: bin/*.apk
+
+      - name: Show logs on failure
+        if: failure()
+        run: cat ./.buildozer/android/platform/build/*/build.log || echo "No build log found"
