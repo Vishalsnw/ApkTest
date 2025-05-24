@@ -2,16 +2,28 @@ from kivy.app import App
 from kivy.uix.image import Image
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.uix.filechooser import FileChooserIconView
-from kivy.uix.popup import Popup
+from kivy.core.window import Window
+from kivy.clock import Clock
+
 import fitz  # PyMuPDF
 from PIL import Image as PILImage
 import io
 import os
 
+# Android-specific imports
+from android.permissions import request_permissions, Permission
+from android import activity
+from jnius import autoclass, cast
+
+Intent = autoclass('android.content.Intent')
+Uri = autoclass('android.net.Uri')
+File = autoclass('java.io.File')
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
 
 class PDFApp(App):
     def build(self):
+        request_permissions([Permission.READ_EXTERNAL_STORAGE])
+
         self.layout = BoxLayout(orientation='vertical')
         self.img_widget = Image()
         self.layout.add_widget(self.img_widget)
@@ -25,29 +37,63 @@ class PDFApp(App):
         btn_layout.add_widget(btn_next)
         self.layout.add_widget(btn_layout)
 
-        self.show_file_chooser()
+        Clock.schedule_once(lambda dt: self.open_file_picker(), 1)
+
+        activity.bind(on_activity_result=self.on_activity_result)
         return self.layout
 
-    def show_file_chooser(self):
-        chooser = FileChooserIconView(filters=["*.pdf"])
-        popup = Popup(title="Select a PDF File", content=chooser, size_hint=(0.9, 0.9))
+    def open_file_picker(self):
+        intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.setType("application/pdf")
+        intent.addCategory(Intent.CATEGORY_OPENABLE)
+        currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+        currentActivity.startActivityForResult(intent, 1)
 
-        def load_file(instance, selection):
-            if selection:
-                self.doc = fitz.open(selection[0])
-                self.page_num = 0
-                popup.dismiss()
-                self.show_page(self.page_num)
+    def on_activity_result(self, requestCode, resultCode, intent):
+        if resultCode == -1 and intent:
+            uri = intent.getData()
+            context = PythonActivity.mActivity.getApplicationContext()
+            path = self.get_real_path_from_uri(uri)
+            if path:
+                self.load_pdf(path)
 
-        chooser.bind(on_submit=load_file)
-        popup.open()
+    def get_real_path_from_uri(self, uri):
+        # Convert Android content URI to file path
+        context = PythonActivity.mActivity
+        file_path = None
+
+        try:
+            file_path = os.path.join(
+                context.getCacheDir().getAbsolutePath(), "selected.pdf")
+            inputStream = context.getContentResolver().openInputStream(uri)
+            outputStream = open(file_path, "wb")
+            buffer = bytearray(1024)
+            while True:
+                length = inputStream.read(buffer)
+                if length == -1 or length == 0:
+                    break
+                outputStream.write(buffer[:length])
+            inputStream.close()
+            outputStream.close()
+            return file_path
+        except Exception as e:
+            print("Error copying file:", e)
+            return None
+
+    def load_pdf(self, path):
+        try:
+            self.doc = fitz.open(path)
+            self.page_num = 0
+            self.show_page(self.page_num)
+        except Exception as e:
+            print("Error loading PDF:", e)
 
     def show_page(self, num):
         page = self.doc.load_page(num)
         pix = page.get_pixmap()
         img_bytes = pix.tobytes("ppm")
         img = PILImage.open(io.BytesIO(img_bytes))
-        img_path = "temp_page.png"
+        img_path = f"/data/data/org.test.pdfviewer/files/page_{num}.png"
         img.save(img_path)
         self.img_widget.source = img_path
         self.img_widget.reload()
@@ -61,6 +107,5 @@ class PDFApp(App):
         if hasattr(self, 'doc') and self.page_num > 0:
             self.page_num -= 1
             self.show_page(self.page_num)
-
 
 PDFApp().run()
